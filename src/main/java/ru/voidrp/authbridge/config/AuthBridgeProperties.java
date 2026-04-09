@@ -11,10 +11,11 @@ public record AuthBridgeProperties(
         String consumeTicketPath,
         String legacyLoginPath,
         String gameAuthSecret
-) {
+        ) {
+
     public static AuthBridgeProperties loadDefault() {
         String baseUrl = System.getProperty("voidrp.auth.backend", "https://api.void-rp.ru");
-        String timeoutMs = System.getProperty("voidrp.auth.timeoutMs", "5000");
+        String timeoutMs = System.getProperty("voidrp.auth.timeoutMs", "60000");
         String ticketPath = System.getProperty("voidrp.auth.ticketPath", defaultTicketPath().toString());
         String gameSecret = System.getProperty("voidrp.auth.gameSecret", "");
 

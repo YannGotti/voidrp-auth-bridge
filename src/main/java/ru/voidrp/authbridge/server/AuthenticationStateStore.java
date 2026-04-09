@@ -11,6 +11,7 @@ public final class AuthenticationStateStore {
     private final Map<UUID, AuthenticatedPlayerRecord> records = new ConcurrentHashMap<>();
     private final Map<UUID, PendingPlayerRecord> pendingRecords = new ConcurrentHashMap<>();
     private final Map<UUID, PendingPlayerRecord> legacyPendingRecords = new ConcurrentHashMap<>();
+    private final Map<UUID, ReconnectGrantRecord> reconnectGrantRecords = new ConcurrentHashMap<>();
 
     public void markAuthenticated(AuthenticatedPlayerRecord record) {
         records.put(record.playerUuid(), record);
@@ -74,6 +75,47 @@ public final class AuthenticationStateStore {
         return Map.copyOf(pendingRecords);
     }
 
+    public void rememberReconnectGrant(AuthenticatedPlayerRecord record, Instant expiresAtUtc) {
+        reconnectGrantRecords.put(
+                record.playerUuid(),
+                new ReconnectGrantRecord(
+                        record.playerUuid(),
+                        record.userId(),
+                        record.playerName(),
+                        record.source(),
+                        record.authenticatedAt(),
+                        expiresAtUtc
+                )
+        );
+    }
+
+    public Optional<ReconnectGrantRecord> findActiveReconnectGrant(UUID playerUuid, String playerName, Instant nowUtc) {
+        ReconnectGrantRecord grant = reconnectGrantRecords.get(playerUuid);
+        if (grant == null) {
+            return Optional.empty();
+        }
+
+        if (grant.isExpired(nowUtc)) {
+            reconnectGrantRecords.remove(playerUuid);
+            return Optional.empty();
+        }
+
+        if (playerName == null || grant.playerName() == null) {
+            reconnectGrantRecords.remove(playerUuid);
+            return Optional.empty();
+        }
+
+        if (!grant.playerName().equalsIgnoreCase(playerName)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(grant);
+    }
+
+    public void removeReconnectGrant(UUID playerUuid) {
+        reconnectGrantRecords.remove(playerUuid);
+    }
+
     public record PendingPlayerRecord(
             Instant deadlineUtc,
             boolean legacyAuthEnabled,
@@ -83,4 +125,19 @@ public final class AuthenticationStateStore {
             double anchorZ
     ) {
     }
+
+    public record ReconnectGrantRecord(
+            UUID playerUuid,
+            UUID userId,
+            String playerName,
+            AuthSource source,
+            Instant grantedAtUtc,
+            Instant expiresAtUtc
+    ) {
+        
+
+    public boolean isExpired(Instant nowUtc) {
+        return expiresAtUtc == null || !expiresAtUtc.isAfter(nowUtc);
+    }
+}
 }
