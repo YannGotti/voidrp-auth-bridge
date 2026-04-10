@@ -6,7 +6,9 @@ import ru.voidrp.authbridge.VoidRpAuthBridge;
 import ru.voidrp.authbridge.client.ClientAuthHooks;
 import ru.voidrp.authbridge.client.ClientTicketDispatcher;
 import ru.voidrp.authbridge.config.AuthBridgeProperties;
+import ru.voidrp.authbridge.integration.AuthIntegrationRegistry;
 import ru.voidrp.authbridge.integration.AuthRestrictionBridge;
+import ru.voidrp.authbridge.integration.EventDispatchingAuthRestrictionBridge;
 import ru.voidrp.authbridge.network.AuthPayloadRegistrar;
 import ru.voidrp.authbridge.server.AuthCommandBridge;
 import ru.voidrp.authbridge.server.AuthenticationStateStore;
@@ -27,6 +29,7 @@ public final class ModBootstrap {
     private final PlayTicketConsumeService playTicketConsumeService;
     private final LegacyAuthService legacyAuthService;
     private final ClientTicketDispatcher clientTicketDispatcher;
+    private final AuthIntegrationRegistry authIntegrationRegistry;
     private final AuthRestrictionBridge authRestrictionBridge;
 
     private ModBootstrap(
@@ -36,6 +39,7 @@ public final class ModBootstrap {
             PlayTicketConsumeService playTicketConsumeService,
             LegacyAuthService legacyAuthService,
             ClientTicketDispatcher clientTicketDispatcher,
+            AuthIntegrationRegistry authIntegrationRegistry,
             AuthRestrictionBridge authRestrictionBridge
     ) {
         this.properties = properties;
@@ -44,6 +48,7 @@ public final class ModBootstrap {
         this.playTicketConsumeService = playTicketConsumeService;
         this.legacyAuthService = legacyAuthService;
         this.clientTicketDispatcher = clientTicketDispatcher;
+        this.authIntegrationRegistry = authIntegrationRegistry;
         this.authRestrictionBridge = authRestrictionBridge;
     }
 
@@ -51,6 +56,9 @@ public final class ModBootstrap {
         AuthBridgeProperties properties = AuthBridgeProperties.loadDefault();
         AuthenticationStateStore stateStore = new AuthenticationStateStore();
         BackendAuthClient backendAuthClient = new BackendAuthClient(properties);
+        AuthIntegrationRegistry authIntegrationRegistry = new AuthIntegrationRegistry();
+        AuthRestrictionBridge authRestrictionBridge
+                = new EventDispatchingAuthRestrictionBridge(authIntegrationRegistry);
 
         INSTANCE = new ModBootstrap(
                 properties,
@@ -59,7 +67,8 @@ public final class ModBootstrap {
                 new PlayTicketConsumeService(backendAuthClient, stateStore),
                 new LegacyAuthService(backendAuthClient, stateStore),
                 new ClientTicketDispatcher(properties),
-                AuthRestrictionBridge.noop()
+                authIntegrationRegistry,
+                authRestrictionBridge
         );
 
         return INSTANCE;
@@ -88,12 +97,14 @@ public final class ModBootstrap {
         NeoForge.EVENT_BUS.register(ClientAuthHooks.class);
 
         VoidRpAuthBridge.LOGGER.info(
-                "Auth bridge registered: stateStore={}, backendClient={}, playTicketService={}, legacyService={}, preAuthRestrictionService={}",
+                "Auth bridge registered: stateStore={}, backendClient={}, playTicketService={}, legacyService={}, preAuthRestrictionService={}, authIntegrationRegistry={}, authRestrictionBridge={}",
                 stateStore.getClass().getSimpleName(),
                 backendAuthClient.getClass().getSimpleName(),
                 playTicketConsumeService.getClass().getSimpleName(),
                 legacyAuthService.getClass().getSimpleName(),
-                PreAuthRestrictionService.class.getSimpleName()
+                PreAuthRestrictionService.class.getSimpleName(),
+                authIntegrationRegistry.getClass().getSimpleName(),
+                authRestrictionBridge.getClass().getSimpleName()
         );
     }
 
@@ -119,6 +130,10 @@ public final class ModBootstrap {
 
     public ClientTicketDispatcher clientTicketDispatcher() {
         return clientTicketDispatcher;
+    }
+
+    public AuthIntegrationRegistry authIntegrationRegistry() {
+        return authIntegrationRegistry;
     }
 
     public AuthRestrictionBridge authRestrictionBridge() {

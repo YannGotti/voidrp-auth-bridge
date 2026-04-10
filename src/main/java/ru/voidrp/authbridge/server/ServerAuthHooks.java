@@ -38,6 +38,7 @@ public final class ServerAuthHooks {
             }
         }
 
+        ModBootstrap.get().authRestrictionBridge().onPlayerSessionEnded(playerUuid);
         stateStore.clear(playerUuid);
     }
 }
