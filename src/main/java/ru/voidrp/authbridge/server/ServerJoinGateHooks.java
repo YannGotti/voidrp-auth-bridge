@@ -30,6 +30,12 @@ public final class ServerJoinGateHooks {
     private static final Component ACCOUNT_DENIED_KICK = Component.literal(
             "Вход в игру сейчас недоступен для этого аккаунта."
     );
+    private static final Component ACCOUNT_NOT_FOUND_KICK = Component.literal(
+            "Игровой аккаунт не найден. Зарегистрируй аккаунт VoidRP и укажи правильный ник Minecraft."
+    );
+    private static final Component AUTH_SERVICE_UNAVAILABLE_KICK = Component.literal(
+            "Сервис авторизации временно недоступен. Попробуйте зайти позже."
+    );
     private static final Component RECONNECT_ACCEPTED = Component.literal(
             "Повторный вход подтверждён. Можно продолжать игру."
     );
@@ -76,6 +82,40 @@ public final class ServerJoinGateHooks {
         }
 
         PlayerAccessResponse access = ModBootstrap.get().backendAuthClient().getPlayerAccess(playerName);
+
+        if (isBackendLookupFailure(access)) {
+            VoidRpAuthBridge.LOGGER.warn(
+                    "Kicking player because auth backend lookup failed: player={} uuid={} error={}",
+                    playerName,
+                    playerUuid,
+                    access.error()
+            );
+            disconnectAndClear(player, AUTH_SERVICE_UNAVAILABLE_KICK);
+            return;
+        }
+
+        if (!access.playerExists()) {
+            VoidRpAuthBridge.LOGGER.warn(
+                    "Kicking player because player account was not found: player={} uuid={} backendError={}",
+                    playerName,
+                    playerUuid,
+                    access.error()
+            );
+            disconnectAndClear(player, ACCOUNT_NOT_FOUND_KICK);
+            return;
+        }
+
+        if (!access.userActive()) {
+            VoidRpAuthBridge.LOGGER.warn(
+                    "Kicking player because account is disabled: player={} uuid={} backendError={}",
+                    playerName,
+                    playerUuid,
+                    access.error()
+            );
+            disconnectAndClear(player, ACCOUNT_DENIED_KICK);
+            return;
+        }
+
         Instant deadline = Instant.now().plusSeconds(AUTH_GRACE_SECONDS);
 
         stateStore.markPending(
@@ -91,9 +131,11 @@ public final class ServerJoinGateHooks {
         );
 
         VoidRpAuthBridge.LOGGER.info(
-                "Player entered auth gate: player={} uuid={} legacyEnabled={} mustUseLauncher={} deadlineUtc={} backendError={}",
+                "Player entered auth gate: player={} uuid={} playerExists={} userActive={} legacyEnabled={} mustUseLauncher={} deadlineUtc={} backendError={}",
                 playerName,
                 playerUuid,
+                access.playerExists(),
+                access.userActive(),
                 access.legacyAuthEnabled(),
                 access.mustUseLauncher(),
                 deadline,
@@ -151,7 +193,7 @@ public final class ServerJoinGateHooks {
                 player.connection.disconnect(LAUNCHER_ONLY_KICK);
             } else {
                 VoidRpAuthBridge.LOGGER.warn(
-                        "Kicking player because account access is denied: player={} uuid={}",
+                        "Kicking player because account access is denied after auth gate timeout: player={} uuid={}",
                         player.getGameProfile().getName(),
                         playerUuid
                 );
@@ -160,5 +202,26 @@ public final class ServerJoinGateHooks {
 
             stateStore.clear(playerUuid);
         }
+    }
+
+    private static boolean isBackendLookupFailure(PlayerAccessResponse access) {
+        if (access == null) {
+            return true;
+        }
+
+        String error = access.error();
+        if (error == null || error.isBlank()) {
+            return false;
+        }
+
+        return error.startsWith("io_error:")
+                || error.startsWith("interrupted:")
+                || error.startsWith("client_error:")
+                || error.startsWith("http_");
+    }
+
+    private static void disconnectAndClear(ServerPlayer player, Component reason) {
+        ModBootstrap.get().stateStore().clear(player.getUUID());
+        player.connection.disconnect(reason);
     }
 }
