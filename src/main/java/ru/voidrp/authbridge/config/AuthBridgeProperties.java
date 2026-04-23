@@ -35,7 +35,12 @@ public record AuthBridgeProperties(
             return Path.of(localAppData, "VoidRpLauncher", "state", "play-ticket.json");
         }
 
+        String osName = System.getProperty("os.name", "").toLowerCase();
         String userHome = System.getProperty("user.home", ".");
-        return Path.of(userHome, "AppData", "Local", "VoidRpLauncher", "state", "play-ticket.json");
+        if (osName.contains("mac")) {
+            return Path.of(userHome, "Library", "Application Support", "VoidRpLauncher", "state", "play-ticket.json");
+        }
+
+        return Path.of(userHome, ".local", "share", "VoidRpLauncher", "state", "play-ticket.json");
     }
 }

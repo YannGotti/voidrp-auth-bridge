@@ -1,0 +1,2170 @@
+E:\voidrp-auth-bridge
+
+├── docs
+│   ├── ARCHITECTURE.md
+│   └── TODO.md
+├── runs
+│   ├── client
+│   │   ├── config
+│   │   │   ├── fml.toml
+│   │   │   ├── neoforge-client.toml
+│   │   │   └── neoforge-common.toml
+│   │   ├── defaultconfigs
+│   │   ├── downloads
+│   │   │   └── log.json
+│   │   ├── logs
+│   │   │   ├── telemetry
+│   │   │   ├── debug.log
+│   │   │   └── latest.log
+│   │   ├── mods
+│   │   ├── resourcepacks
+│   │   ├── saves
+│   │   └── options.txt
+│   └── junit
+│       ├── junit_jvm_args.txt
+│       └── junit_test_args.txt
+├── src
+│   ├── generated
+│   │   └── resources
+│   └── main
+│       ├── java
+│       │   └── ru
+│       │       └── voidrp
+│       │           └── authbridge
+│       │               ├── bootstrap
+│       │               │   └── ModBootstrap.java
+│       │               ├── client
+│       │               │   ├── ClientAuthHooks.java
+│       │               │   ├── ClientTicketDispatcher.java
+│       │               │   └── ClientTicketFileService.java
+│       │               ├── common
+│       │               │   ├── dto
+│       │               │   │   ├── ConsumePlayTicketRequest.java
+│       │               │   │   ├── ConsumePlayTicketResponse.java
+│       │               │   │   ├── LegacyLoginRequest.java
+│       │               │   │   ├── LegacyLoginResponse.java
+│       │               │   │   ├── PlayerAccessRequest.java
+│       │               │   │   ├── PlayerAccessResponse.java
+│       │               │   │   └── PlayTicketFile.java
+│       │               │   ├── json
+│       │               │   │   ├── GsonFactory.java
+│       │               │   │   └── InstantTypeAdapter.java
+│       │               │   ├── logging
+│       │               │   │   └── AuthLogMarkers.java
+│       │               │   └── util
+│       │               │       └── HttpJson.java
+│       │               ├── config
+│       │               │   └── AuthBridgeProperties.java
+│       │               ├── integration
+│       │               │   ├── AuthIntegrationRegistry.java
+│       │               │   ├── AuthRestrictionBridge.java
+│       │               │   ├── EventDispatchingAuthRestrictionBridge.java
+│       │               │   ├── VoidRpPlayerAuthenticatedEvent.java
+│       │               │   └── VoidRpPlayerAuthSessionEndedEvent.java
+│       │               ├── network
+│       │               │   ├── AuthPayloadRegistrar.java
+│       │               │   ├── ConsumePlayTicketPayload.java
+│       │               │   └── ServerPayloadHandler.java
+│       │               ├── server
+│       │               │   ├── AuthCommandBridge.java
+│       │               │   ├── AuthenticatedPlayerRecord.java
+│       │               │   ├── AuthenticationStateStore.java
+│       │               │   ├── AuthSource.java
+│       │               │   ├── BackendAuthClient.java
+│       │               │   ├── LegacyAuthService.java
+│       │               │   ├── PlayTicketConsumeService.java
+│       │               │   ├── PreAuthRestrictionService.java
+│       │               │   ├── ServerAuthHooks.java
+│       │               │   └── ServerJoinGateHooks.java
+│       │               └── VoidRpAuthBridge.java
+│       └── resources
+│           ├── assets
+│           │   └── voidrp_auth_bridge
+│           │       └── lang
+│           │           ├── en_us.json
+│           │           └── ru_ru.json
+│           ├── data
+│           │   └── voidrp_auth_bridge
+│           └── META-INF
+│               └── neoforge.mods.toml
+├── .editorconfig
+├── .gitignore
+├── .LCKgradle.properties~
+├── bootstrap-neoforge-build.ps1
+├── build.gradle
+├── dump.bat
+├── dump.py
+├── gradle.properties
+├── gradlew
+├── gradlew.bat
+├── PROJECT_TREE.txt
+├── README.md
+├── README_BRIDGE.md
+└── settings.gradle
+
+============================================================
+СОДЕРЖИМОЕ ФАЙЛОВ (.java, .yml)
+============================================================
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\gradle.properties
+------------------------------------------------------------
+﻿org.gradle.jvmargs=-Xmx3G
+org.gradle.daemon=true
+org.gradle.parallel=false
+org.gradle.configuration-cache=false
+org.gradle.workers.max=1
+
+systemProp.org.gradle.internal.http.connectionTimeout=180000
+systemProp.org.gradle.internal.http.socketTimeout=180000
+
+systemProp.http.proxyHost=127.0.0.1
+systemProp.http.proxyPort=12334
+systemProp.https.proxyHost=127.0.0.1
+systemProp.https.proxyPort=12334
+systemProp.http.nonProxyHosts=localhost|127.0.0.1
+
+minecraft_version=1.21.1
+minecraft_version_range=[1.21.1,1.22)
+neo_version=21.1.218
+neo_version_range=[21.1.218,21.2)
+loader_version_range=[1,)
+
+mod_id=voidrp_auth_bridge
+mod_name=VoidRP Auth Bridge
+mod_license=All Rights Reserved
+mod_version=0.1.0-SKELETON
+mod_group_id=ru.voidrp
+mod_authors=YannGotti
+mod_description=Bridge between VoidRP launcher play tickets, backend auth and in-game NeoForge login flow.
+mod_issue_tracker_url=https://void-rp.ru
+mod_display_url=https://void-rp.ru
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\runs\client\downloads\log.json
+------------------------------------------------------------
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\bootstrap\ModBootstrap.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.bootstrap;
+
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.common.NeoForge;
+import ru.voidrp.authbridge.VoidRpAuthBridge;
+import ru.voidrp.authbridge.client.ClientAuthHooks;
+import ru.voidrp.authbridge.client.ClientTicketDispatcher;
+import ru.voidrp.authbridge.config.AuthBridgeProperties;
+import ru.voidrp.authbridge.integration.AuthIntegrationRegistry;
+import ru.voidrp.authbridge.integration.AuthRestrictionBridge;
+import ru.voidrp.authbridge.integration.EventDispatchingAuthRestrictionBridge;
+import ru.voidrp.authbridge.network.AuthPayloadRegistrar;
+import ru.voidrp.authbridge.server.AuthCommandBridge;
+import ru.voidrp.authbridge.server.AuthenticationStateStore;
+import ru.voidrp.authbridge.server.BackendAuthClient;
+import ru.voidrp.authbridge.server.LegacyAuthService;
+import ru.voidrp.authbridge.server.PlayTicketConsumeService;
+import ru.voidrp.authbridge.server.PreAuthRestrictionService;
+import ru.voidrp.authbridge.server.ServerAuthHooks;
+import ru.voidrp.authbridge.server.ServerJoinGateHooks;
+
+public final class ModBootstrap {
+
+    private static ModBootstrap INSTANCE;
+
+    private final AuthBridgeProperties properties;
+    private final AuthenticationStateStore stateStore;
+    private final BackendAuthClient backendAuthClient;
+    private final PlayTicketConsumeService playTicketConsumeService;
+    private final LegacyAuthService legacyAuthService;
+    private final ClientTicketDispatcher clientTicketDispatcher;
+    private final AuthIntegrationRegistry authIntegrationRegistry;
+    private final AuthRestrictionBridge authRestrictionBridge;
+
+    private ModBootstrap(
+            AuthBridgeProperties properties,
+            AuthenticationStateStore stateStore,
+            BackendAuthClient backendAuthClient,
+            PlayTicketConsumeService playTicketConsumeService,
+            LegacyAuthService legacyAuthService,
+            ClientTicketDispatcher clientTicketDispatcher,
+            AuthIntegrationRegistry authIntegrationRegistry,
+            AuthRestrictionBridge authRestrictionBridge
+    ) {
+        this.properties = properties;
+        this.stateStore = stateStore;
+        this.backendAuthClient = backendAuthClient;
+        this.playTicketConsumeService = playTicketConsumeService;
+        this.legacyAuthService = legacyAuthService;
+        this.clientTicketDispatcher = clientTicketDispatcher;
+        this.authIntegrationRegistry = authIntegrationRegistry;
+        this.authRestrictionBridge = authRestrictionBridge;
+    }
+
+    public static ModBootstrap createDefault() {
+        AuthBridgeProperties properties = AuthBridgeProperties.loadDefault();
+        AuthenticationStateStore stateStore = new AuthenticationStateStore();
+        BackendAuthClient backendAuthClient = new BackendAuthClient(properties);
+        AuthIntegrationRegistry authIntegrationRegistry = new AuthIntegrationRegistry();
+        AuthRestrictionBridge authRestrictionBridge
+                = new EventDispatchingAuthRestrictionBridge(authIntegrationRegistry);
+
+        INSTANCE = new ModBootstrap(
+                properties,
+                stateStore,
+                backendAuthClient,
+                new PlayTicketConsumeService(backendAuthClient, stateStore),
+                new LegacyAuthService(backendAuthClient, stateStore),
+                new ClientTicketDispatcher(properties),
+                authIntegrationRegistry,
+                authRestrictionBridge
+        );
+
+        return INSTANCE;
+    }
+
+    public static ModBootstrap get() {
+        if (INSTANCE == null) {
+            throw new IllegalStateException("ModBootstrap is not initialized yet");
+        }
+        return INSTANCE;
+    }
+
+    public void initialize(IEventBus modBus) {
+        if (modBus == null) {
+            throw new IllegalArgumentException("modBus must not be null");
+        }
+
+        VoidRpAuthBridge.LOGGER.info("Bootstrapping auth bridge against backend {}", properties.backendBaseUrl());
+
+        modBus.register(AuthPayloadRegistrar.class);
+
+        NeoForge.EVENT_BUS.register(AuthCommandBridge.class);
+        NeoForge.EVENT_BUS.register(ServerAuthHooks.class);
+        NeoForge.EVENT_BUS.register(ServerJoinGateHooks.class);
+        NeoForge.EVENT_BUS.register(PreAuthRestrictionService.class);
+        NeoForge.EVENT_BUS.register(ClientAuthHooks.class);
+
+        VoidRpAuthBridge.LOGGER.info(
+                "Auth bridge registered: stateStore={}, backendClient={}, playTicketService={}, legacyService={}, preAuthRestrictionService={}, authIntegrationRegistry={}, authRestrictionBridge={}",
+                stateStore.getClass().getSimpleName(),
+                backendAuthClient.getClass().getSimpleName(),
+                playTicketConsumeService.getClass().getSimpleName(),
+                legacyAuthService.getClass().getSimpleName(),
+                PreAuthRestrictionService.class.getSimpleName(),
+                authIntegrationRegistry.getClass().getSimpleName(),
+                authRestrictionBridge.getClass().getSimpleName()
+        );
+    }
+
+    public AuthBridgeProperties properties() {
+        return properties;
+    }
+
+    public AuthenticationStateStore stateStore() {
+        return stateStore;
+    }
+
+    public BackendAuthClient backendAuthClient() {
+        return backendAuthClient;
+    }
+
+    public PlayTicketConsumeService playTicketConsumeService() {
+        return playTicketConsumeService;
+    }
+
+    public LegacyAuthService legacyAuthService() {
+        return legacyAuthService;
+    }
+
+    public ClientTicketDispatcher clientTicketDispatcher() {
+        return clientTicketDispatcher;
+    }
+
+    public AuthIntegrationRegistry authIntegrationRegistry() {
+        return authIntegrationRegistry;
+    }
+
+    public AuthRestrictionBridge authRestrictionBridge() {
+        return authRestrictionBridge;
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\client\ClientAuthHooks.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.client;
+
+import java.util.Optional;
+import net.minecraft.client.Minecraft;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.client.event.ClientPlayerNetworkEvent;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
+import ru.voidrp.authbridge.VoidRpAuthBridge;
+import ru.voidrp.authbridge.bootstrap.ModBootstrap;
+import ru.voidrp.authbridge.common.dto.ConsumePlayTicketRequest;
+import ru.voidrp.authbridge.network.ConsumePlayTicketPayload;
+
+public final class ClientAuthHooks {
+
+    private static final long DISPATCH_WINDOW_MS = 120_000L;
+
+    private static boolean sentThisSession = false;
+    private static boolean awaitingDispatch = false;
+    private static long loginStartedAtMs = 0L;
+
+    private ClientAuthHooks() {
+    }
+
+    @SubscribeEvent
+    public static void onLoggingIn(ClientPlayerNetworkEvent.LoggingIn event) {
+        sentThisSession = false;
+        awaitingDispatch = true;
+        loginStartedAtMs = System.currentTimeMillis();
+
+        VoidRpAuthBridge.LOGGER.info(
+                "Client login detected, waiting for player instance before sending launcher ticket."
+        );
+    }
+
+    @SubscribeEvent
+    public static void onClientTick(ClientTickEvent.Post event) {
+        if (!awaitingDispatch || sentThisSession) {
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+
+        if (minecraft.getConnection() == null) {
+            resetState();
+            return;
+        }
+
+        long elapsedMs = System.currentTimeMillis() - loginStartedAtMs;
+        if (elapsedMs > DISPATCH_WINDOW_MS) {
+            awaitingDispatch = false;
+            VoidRpAuthBridge.LOGGER.warn(
+                    "Launcher ticket dispatch window expired before player instance became ready."
+            );
+            return;
+        }
+
+        if (minecraft.player == null) {
+            return;
+        }
+
+        String playerName = minecraft.player.getGameProfile().getName();
+
+        Optional<ConsumePlayTicketRequest> request
+                = ModBootstrap.get().clientTicketDispatcher().buildConsumeRequest(playerName);
+
+        if (request.isEmpty()) {
+            awaitingDispatch = false;
+            VoidRpAuthBridge.LOGGER.warn(
+                    "No valid launcher play ticket found for player={} at path={}",
+                    playerName,
+                    ModBootstrap.get().properties().localTicketPath()
+            );
+            return;
+        }
+
+        ConsumePlayTicketRequest value = request.get();
+
+        PacketDistributor.sendToServer(new ConsumePlayTicketPayload(
+                value.ticket(),
+                value.playerName()
+        ));
+
+        sentThisSession = true;
+        awaitingDispatch = false;
+
+        VoidRpAuthBridge.LOGGER.info(
+                "Sent launcher play ticket payload for player={}",
+                playerName
+        );
+    }
+
+    @SubscribeEvent
+    public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
+        resetState();
+    }
+
+    private static void resetState() {
+        sentThisSession = false;
+        awaitingDispatch = false;
+        loginStartedAtMs = 0L;
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\client\ClientTicketDispatcher.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.client;
+
+import java.time.Instant;
+import java.util.Optional;
+import ru.voidrp.authbridge.common.dto.ConsumePlayTicketRequest;
+import ru.voidrp.authbridge.common.dto.PlayTicketFile;
+import ru.voidrp.authbridge.config.AuthBridgeProperties;
+
+public final class ClientTicketDispatcher {
+    private final AuthBridgeProperties properties;
+    private final ClientTicketFileService ticketFileService;
+
+    public ClientTicketDispatcher(AuthBridgeProperties properties) {
+        this.properties = properties;
+        this.ticketFileService = new ClientTicketFileService();
+    }
+
+    public Optional<PlayTicketFile> loadValidTicket(String currentPlayerName) {
+        Optional<PlayTicketFile> ticket = ticketFileService.readTicket(properties.localTicketPath());
+        if (ticket.isEmpty()) {
+            return Optional.empty();
+        }
+
+        PlayTicketFile value = ticket.get();
+        if (value.isExpired(Instant.now())) {
+            return Optional.empty();
+        }
+        if (currentPlayerName == null || value.minecraftNickname() == null) {
+            return Optional.empty();
+        }
+        if (!currentPlayerName.equalsIgnoreCase(value.minecraftNickname())) {
+            return Optional.empty();
+        }
+        if (value.ticket() == null || value.ticket().isBlank()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(value);
+    }
+
+    public Optional<ConsumePlayTicketRequest> buildConsumeRequest(String currentPlayerName) {
+        return loadValidTicket(currentPlayerName)
+                .map(ticket -> new ConsumePlayTicketRequest(
+                        ticket.ticket(),
+                        currentPlayerName
+                ));
+    }
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\client\ClientTicketFileService.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.client;
+
+import com.google.gson.Gson;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Optional;
+import ru.voidrp.authbridge.common.dto.PlayTicketFile;
+import ru.voidrp.authbridge.common.json.GsonFactory;
+
+public final class ClientTicketFileService {
+    private final Gson gson = GsonFactory.create();
+
+    public Optional<PlayTicketFile> readTicket(Path path) {
+        if (path == null || Files.notExists(path)) {
+            return Optional.empty();
+        }
+
+        try {
+            String json = Files.readString(path, StandardCharsets.UTF_8);
+            return Optional.ofNullable(gson.fromJson(json, PlayTicketFile.class));
+        } catch (IOException ex) {
+            return Optional.empty();
+        }
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\common\dto\ConsumePlayTicketRequest.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.common.dto;
+
+import com.google.gson.annotations.SerializedName;
+
+public record ConsumePlayTicketRequest(
+        @SerializedName("ticket")
+        String ticket,
+
+        @SerializedName("player_name")
+        String playerName
+) {
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\common\dto\ConsumePlayTicketResponse.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.common.dto;
+
+import com.google.gson.annotations.SerializedName;
+import java.time.Instant;
+import java.util.UUID;
+
+public record ConsumePlayTicketResponse(
+        @SerializedName("accepted")
+        boolean accepted,
+
+        @SerializedName("user_id")
+        UUID userId,
+
+        @SerializedName("minecraft_nickname")
+        String minecraftNickname,
+
+        @SerializedName("legacy_auth_enabled")
+        boolean legacyAuthEnabled,
+
+        @SerializedName("expires_at")
+        Instant expiresAt,
+
+        String error
+) {
+    public static ConsumePlayTicketResponse failed(String error) {
+        return new ConsumePlayTicketResponse(false, null, null, false, null, error);
+    }
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\common\dto\LegacyLoginRequest.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.common.dto;
+
+import com.google.gson.annotations.SerializedName;
+
+public record LegacyLoginRequest(
+        @SerializedName("player_name")
+        String playerName,
+
+        @SerializedName("password")
+        String password
+) {
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\common\dto\LegacyLoginResponse.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.common.dto;
+
+import com.google.gson.annotations.SerializedName;
+import java.util.UUID;
+
+public record LegacyLoginResponse(
+        @SerializedName("accepted")
+        boolean accepted,
+
+        @SerializedName("user_id")
+        UUID userId,
+
+        @SerializedName("minecraft_nickname")
+        String minecraftNickname,
+
+        @SerializedName("legacy_auth_enabled")
+        boolean legacyAuthEnabled,
+
+        @SerializedName("email_verified")
+        boolean emailVerified,
+
+        String error
+) {
+    public static LegacyLoginResponse failed(String error) {
+        return new LegacyLoginResponse(false, null, null, false, false, error);
+    }
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\common\dto\PlayerAccessRequest.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.common.dto;
+
+import com.google.gson.annotations.SerializedName;
+
+public record PlayerAccessRequest(
+        @SerializedName("player_name")
+        String playerName
+) {
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\common\dto\PlayerAccessResponse.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.common.dto;
+
+import com.google.gson.annotations.SerializedName;
+
+public record PlayerAccessResponse(
+        @SerializedName("player_exists")
+        boolean playerExists,
+
+        @SerializedName("user_active")
+        boolean userActive,
+
+        @SerializedName("legacy_auth_enabled")
+        boolean legacyAuthEnabled,
+
+        @SerializedName("must_use_launcher")
+        boolean mustUseLauncher,
+
+        @SerializedName("minecraft_nickname")
+        String minecraftNickname,
+
+        @SerializedName("error")
+        String error
+) {
+    public static PlayerAccessResponse failed(String error) {
+        return new PlayerAccessResponse(false, false, false, true, null, error);
+    }
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\common\dto\PlayTicketFile.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.common.dto;
+
+import com.google.gson.annotations.SerializedName;
+import java.time.Instant;
+
+public record PlayTicketFile(
+        @SerializedName("ticket")
+        String ticket,
+
+        @SerializedName("minecraftNickname")
+        String minecraftNickname,
+
+        @SerializedName("expiresAtUtc")
+        Instant expiresAtUtc,
+
+        @SerializedName("source")
+        String source
+) {
+    public boolean isExpired(Instant now) {
+        return expiresAtUtc == null || !expiresAtUtc.isAfter(now);
+    }
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\common\json\GsonFactory.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.common.json;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import java.time.Instant;
+
+public final class GsonFactory {
+    private static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(Instant.class, new InstantTypeAdapter())
+            .disableHtmlEscaping()
+            .create();
+
+    private GsonFactory() {
+    }
+
+    public static Gson create() {
+        return GSON;
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\common\json\InstantTypeAdapter.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.common.json;
+
+import com.google.gson.TypeAdapter;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+import com.google.gson.stream.JsonWriter;
+import java.io.IOException;
+import java.time.Instant;
+
+public final class InstantTypeAdapter extends TypeAdapter<Instant> {
+    @Override
+    public void write(JsonWriter out, Instant value) throws IOException {
+        if (value == null) {
+            out.nullValue();
+            return;
+        }
+        out.value(value.toString());
+    }
+
+    @Override
+    public Instant read(JsonReader in) throws IOException {
+        if (in.peek() == JsonToken.NULL) {
+            in.nextNull();
+            return null;
+        }
+        return Instant.parse(in.nextString());
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\common\logging\AuthLogMarkers.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.common.logging;
+
+public final class AuthLogMarkers {
+    public static final String CLIENT = "AUTH_CLIENT";
+    public static final String SERVER = "AUTH_SERVER";
+    public static final String BACKEND = "AUTH_BACKEND";
+
+    private AuthLogMarkers() {
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\common\util\HttpJson.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.common.util;
+
+import com.google.gson.Gson;
+import java.net.http.HttpRequest;
+
+public final class HttpJson {
+    private HttpJson() {
+    }
+
+    public static HttpRequest.BodyPublisher body(Gson gson, Object value) {
+        return HttpRequest.BodyPublishers.ofString(gson.toJson(value));
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\config\AuthBridgeProperties.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.config;
+
+import java.net.URI;
+import java.nio.file.Path;
+import java.time.Duration;
+
+public record AuthBridgeProperties(
+        URI backendBaseUrl,
+        Duration requestTimeout,
+        Path localTicketPath,
+        String consumeTicketPath,
+        String legacyLoginPath,
+        String gameAuthSecret
+        ) {
+
+    public static AuthBridgeProperties loadDefault() {
+        String baseUrl = System.getProperty("voidrp.auth.backend", "https://api.void-rp.ru");
+        String timeoutMs = System.getProperty("voidrp.auth.timeoutMs", "60000");
+        String ticketPath = System.getProperty("voidrp.auth.ticketPath", defaultTicketPath().toString());
+        String gameSecret = System.getProperty("voidrp.auth.gameSecret", "");
+
+        return new AuthBridgeProperties(
+                URI.create(baseUrl),
+                Duration.ofMillis(Long.parseLong(timeoutMs)),
+                Path.of(ticketPath),
+                "/api/v1/server/auth/consume-play-ticket",
+                "/api/v1/server/auth/legacy-login",
+                gameSecret
+        );
+    }
+
+    private static Path defaultTicketPath() {
+        String localAppData = System.getenv("LOCALAPPDATA");
+        if (localAppData != null && !localAppData.isBlank()) {
+            return Path.of(localAppData, "VoidRpLauncher", "state", "play-ticket.json");
+        }
+
+        String osName = System.getProperty("os.name", "").toLowerCase();
+        String userHome = System.getProperty("user.home", ".");
+        if (osName.contains("mac")) {
+            return Path.of(userHome, "Library", "Application Support", "VoidRpLauncher", "state", "play-ticket.json");
+        }
+
+        return Path.of(userHome, ".local", "share", "VoidRpLauncher", "state", "play-ticket.json");
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\integration\AuthIntegrationRegistry.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.integration;
+
+import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+public final class AuthIntegrationRegistry {
+
+    private final Set<UUID> authenticatedPlayers = ConcurrentHashMap.newKeySet();
+
+    public void markAuthenticated(UUID playerUuid) {
+        if (playerUuid == null) {
+            return;
+        }
+
+        authenticatedPlayers.add(playerUuid);
+    }
+
+    public void clear(UUID playerUuid) {
+        if (playerUuid == null) {
+            return;
+        }
+
+        authenticatedPlayers.remove(playerUuid);
+    }
+
+    public boolean isAuthenticated(UUID playerUuid) {
+        return playerUuid != null && authenticatedPlayers.contains(playerUuid);
+    }
+
+    public int authenticatedCount() {
+        return authenticatedPlayers.size();
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\integration\AuthRestrictionBridge.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.integration;
+
+import java.util.UUID;
+
+public interface AuthRestrictionBridge {
+
+    void onPlayerAuthenticated(UUID playerUuid);
+
+    default void onPlayerSessionEnded(UUID playerUuid) {
+        // Optional lifecycle hook.
+    }
+
+    static AuthRestrictionBridge noop() {
+        return new AuthRestrictionBridge() {
+            @Override
+            public void onPlayerAuthenticated(UUID playerUuid) {
+                // Intentionally blank.
+            }
+        };
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\integration\EventDispatchingAuthRestrictionBridge.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.integration;
+
+import java.util.UUID;
+import net.neoforged.neoforge.common.NeoForge;
+import ru.voidrp.authbridge.VoidRpAuthBridge;
+
+public final class EventDispatchingAuthRestrictionBridge implements AuthRestrictionBridge {
+
+    private final AuthIntegrationRegistry registry;
+
+    public EventDispatchingAuthRestrictionBridge(AuthIntegrationRegistry registry) {
+        if (registry == null) {
+            throw new IllegalArgumentException("registry must not be null");
+        }
+
+        this.registry = registry;
+    }
+
+    @Override
+    public void onPlayerAuthenticated(UUID playerUuid) {
+        if (playerUuid == null) {
+            return;
+        }
+
+        registry.markAuthenticated(playerUuid);
+        NeoForge.EVENT_BUS.post(new VoidRpPlayerAuthenticatedEvent(playerUuid));
+
+        VoidRpAuthBridge.LOGGER.info(
+                "External auth bridge marked player as authenticated: uuid={}",
+                playerUuid
+        );
+    }
+
+    @Override
+    public void onPlayerSessionEnded(UUID playerUuid) {
+        if (playerUuid == null) {
+            return;
+        }
+
+        boolean wasAuthenticated = registry.isAuthenticated(playerUuid);
+        registry.clear(playerUuid);
+
+        if (!wasAuthenticated) {
+            return;
+        }
+
+        NeoForge.EVENT_BUS.post(new VoidRpPlayerAuthSessionEndedEvent(playerUuid));
+
+        VoidRpAuthBridge.LOGGER.info(
+                "External auth bridge cleared authenticated player session: uuid={}",
+                playerUuid
+        );
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\integration\VoidRpPlayerAuthenticatedEvent.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.integration;
+
+import java.util.UUID;
+import net.neoforged.bus.api.Event;
+
+public final class VoidRpPlayerAuthenticatedEvent extends Event {
+
+    private final UUID playerUuid;
+
+    public VoidRpPlayerAuthenticatedEvent(UUID playerUuid) {
+        this.playerUuid = playerUuid;
+    }
+
+    public UUID playerUuid() {
+        return playerUuid;
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\integration\VoidRpPlayerAuthSessionEndedEvent.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.integration;
+
+import java.util.UUID;
+import net.neoforged.bus.api.Event;
+
+public final class VoidRpPlayerAuthSessionEndedEvent extends Event {
+
+    private final UUID playerUuid;
+
+    public VoidRpPlayerAuthSessionEndedEvent(UUID playerUuid) {
+        this.playerUuid = playerUuid;
+    }
+
+    public UUID playerUuid() {
+        return playerUuid;
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\network\AuthPayloadRegistrar.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.network;
+
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.network.registration.PayloadRegistrar;
+
+public final class AuthPayloadRegistrar {
+    private AuthPayloadRegistrar() {
+    }
+
+    @SubscribeEvent
+    public static void register(RegisterPayloadHandlersEvent event) {
+        PayloadRegistrar registrar = event.registrar("1");
+        registrar.playToServer(
+                ConsumePlayTicketPayload.TYPE,
+                ConsumePlayTicketPayload.STREAM_CODEC,
+                ServerPayloadHandler::handleConsumePlayTicket
+        );
+    }
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\network\ConsumePlayTicketPayload.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.network;
+
+import io.netty.buffer.ByteBuf;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
+import net.minecraft.resources.ResourceLocation;
+import ru.voidrp.authbridge.VoidRpAuthBridge;
+
+public record ConsumePlayTicketPayload(
+        String ticket,
+        String playerName
+) implements CustomPacketPayload {
+
+    public static final Type<ConsumePlayTicketPayload> TYPE =
+            new Type<>(ResourceLocation.fromNamespaceAndPath(VoidRpAuthBridge.MODID, "consume_play_ticket"));
+
+    public static final StreamCodec<ByteBuf, ConsumePlayTicketPayload> STREAM_CODEC =
+            StreamCodec.composite(
+                    ByteBufCodecs.STRING_UTF8,
+                    ConsumePlayTicketPayload::ticket,
+                    ByteBufCodecs.STRING_UTF8,
+                    ConsumePlayTicketPayload::playerName,
+                    ConsumePlayTicketPayload::new
+            );
+
+    @Override
+    public Type<? extends CustomPacketPayload> type() {
+        return TYPE;
+    }
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\network\ServerPayloadHandler.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.network;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.neoforge.network.handling.IPayloadContext;
+import ru.voidrp.authbridge.VoidRpAuthBridge;
+import ru.voidrp.authbridge.bootstrap.ModBootstrap;
+import ru.voidrp.authbridge.common.dto.ConsumePlayTicketRequest;
+import ru.voidrp.authbridge.common.dto.ConsumePlayTicketResponse;
+
+public final class ServerPayloadHandler {
+
+    private ServerPayloadHandler() {
+    }
+
+    public static void handleConsumePlayTicket(final ConsumePlayTicketPayload payload, final IPayloadContext context) {
+        if (!(context.player() instanceof ServerPlayer serverPlayer)) {
+            VoidRpAuthBridge.LOGGER.warn("Received consume-play-ticket payload from a non-server-player context.");
+            return;
+        }
+
+        VoidRpAuthBridge.LOGGER.info(
+                "Received launcher ticket payload: player={} uuid={} requestedPlayerName={}",
+                serverPlayer.getGameProfile().getName(),
+                serverPlayer.getUUID(),
+                payload.playerName()
+        );
+
+        ConsumePlayTicketResponse response = ModBootstrap.get().playTicketConsumeService().authenticate(
+                serverPlayer.getUUID(),
+                serverPlayer.getGameProfile().getName(),
+                new ConsumePlayTicketRequest(
+                        payload.ticket(),
+                        payload.playerName()
+                )
+        );
+
+        if (response != null && response.accepted()) {
+            ModBootstrap.get().authRestrictionBridge().onPlayerAuthenticated(serverPlayer.getUUID());
+            serverPlayer.sendSystemMessage(Component.literal("Авторизация через лаунчер подтверждена."));
+
+            VoidRpAuthBridge.LOGGER.info(
+                    "Launcher auth accepted: player={} uuid={} userId={}",
+                    serverPlayer.getGameProfile().getName(),
+                    serverPlayer.getUUID(),
+                    response.userId()
+            );
+        } else {
+            String reason = response != null && response.error() != null
+                    ? response.error()
+                    : "launcher ticket rejected";
+
+            serverPlayer.sendSystemMessage(Component.literal("Ticket авторизация не прошла: " + reason));
+
+            VoidRpAuthBridge.LOGGER.warn(
+                    "Launcher auth rejected: player={} uuid={} reason={}",
+                    serverPlayer.getGameProfile().getName(),
+                    serverPlayer.getUUID(),
+                    reason
+            );
+        }
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\server\AuthCommandBridge.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.server;
+
+import com.mojang.brigadier.arguments.StringArgumentType;
+import net.minecraft.commands.Commands;
+import net.minecraft.network.chat.Component;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.RegisterCommandsEvent;
+import ru.voidrp.authbridge.bootstrap.ModBootstrap;
+import ru.voidrp.authbridge.common.dto.LegacyLoginResponse;
+
+public final class AuthCommandBridge {
+    private AuthCommandBridge() {
+    }
+
+    @SubscribeEvent
+    public static void register(RegisterCommandsEvent event) {
+        event.getDispatcher().register(
+                Commands.literal("login")
+                        .then(Commands.argument("password", StringArgumentType.greedyString())
+                                .executes(context -> {
+                                    var source = context.getSource();
+                                    var player = source.getPlayerOrException();
+                                    String password = StringArgumentType.getString(context, "password");
+
+                                    if (!ModBootstrap.get().stateStore().isLegacyPending(player.getUUID())) {
+                                        player.sendSystemMessage(Component.literal("Для этого аккаунта legacy вход не разрешён."));
+                                        return 0;
+                                    }
+
+                                    LegacyLoginResponse response = ModBootstrap.get().legacyAuthService().login(
+                                            player.getUUID(),
+                                            player.getGameProfile().getName(),
+                                            password
+                                    );
+
+                                    if (response != null && response.accepted()) {
+                                        ModBootstrap.get().authRestrictionBridge().onPlayerAuthenticated(player.getUUID());
+                                        player.sendSystemMessage(Component.literal("Legacy авторизация успешна."));
+                                        return 1;
+                                    }
+
+                                    String reason = response != null && response.error() != null
+                                            ? response.error()
+                                            : "invalid credentials";
+                                    player.sendSystemMessage(Component.literal("Ошибка legacy входа: " + reason));
+                                    return 0;
+                                }))
+        );
+    }
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\server\AuthenticatedPlayerRecord.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.server;
+
+import java.time.Instant;
+import java.util.UUID;
+
+public record AuthenticatedPlayerRecord(
+        UUID playerUuid,
+        UUID userId,
+        String playerName,
+        Instant authenticatedAt,
+        AuthSource source
+) {
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\server\AuthenticationStateStore.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.server;
+
+import java.time.Instant;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+
+public final class AuthenticationStateStore {
+
+    private final Map<UUID, AuthenticatedPlayerRecord> records = new ConcurrentHashMap<>();
+    private final Map<UUID, PendingPlayerRecord> pendingRecords = new ConcurrentHashMap<>();
+    private final Map<UUID, PendingPlayerRecord> legacyPendingRecords = new ConcurrentHashMap<>();
+    private final Map<UUID, ReconnectGrantRecord> reconnectGrantRecords = new ConcurrentHashMap<>();
+
+    public void markAuthenticated(AuthenticatedPlayerRecord record) {
+        records.put(record.playerUuid(), record);
+        pendingRecords.remove(record.playerUuid());
+        legacyPendingRecords.remove(record.playerUuid());
+    }
+
+    public void markPending(UUID playerUuid, PendingPlayerRecord pending) {
+        pendingRecords.put(playerUuid, pending);
+        legacyPendingRecords.remove(playerUuid);
+    }
+
+    public Optional<PendingPlayerRecord> findPending(UUID playerUuid) {
+        return Optional.ofNullable(pendingRecords.get(playerUuid));
+    }
+
+    public Optional<PendingPlayerRecord> findLegacyPending(UUID playerUuid) {
+        return Optional.ofNullable(legacyPendingRecords.get(playerUuid));
+    }
+
+    public Optional<PendingPlayerRecord> findRestriction(UUID playerUuid) {
+        PendingPlayerRecord pending = pendingRecords.get(playerUuid);
+        if (pending != null) {
+            return Optional.of(pending);
+        }
+
+        return Optional.ofNullable(legacyPendingRecords.get(playerUuid));
+    }
+
+    public void markLegacyPending(UUID playerUuid) {
+        PendingPlayerRecord pending = pendingRecords.remove(playerUuid);
+        if (pending != null) {
+            legacyPendingRecords.put(playerUuid, pending);
+        }
+    }
+
+    public boolean isLegacyPending(UUID playerUuid) {
+        return legacyPendingRecords.containsKey(playerUuid);
+    }
+
+    public void clear(UUID playerUuid) {
+        records.remove(playerUuid);
+        pendingRecords.remove(playerUuid);
+        legacyPendingRecords.remove(playerUuid);
+    }
+
+    public boolean isAuthenticated(UUID playerUuid) {
+        return records.containsKey(playerUuid);
+    }
+
+    public boolean isRestricted(UUID playerUuid) {
+        return !records.containsKey(playerUuid)
+                && (pendingRecords.containsKey(playerUuid) || legacyPendingRecords.containsKey(playerUuid));
+    }
+
+    public Optional<AuthenticatedPlayerRecord> find(UUID playerUuid) {
+        return Optional.ofNullable(records.get(playerUuid));
+    }
+
+    public Map<UUID, PendingPlayerRecord> snapshotPending() {
+        return Map.copyOf(pendingRecords);
+    }
+
+    public void rememberReconnectGrant(AuthenticatedPlayerRecord record, Instant expiresAtUtc) {
+        reconnectGrantRecords.put(
+                record.playerUuid(),
+                new ReconnectGrantRecord(
+                        record.playerUuid(),
+                        record.userId(),
+                        record.playerName(),
+                        record.source(),
+                        record.authenticatedAt(),
+                        expiresAtUtc
+                )
+        );
+    }
+
+    public Optional<ReconnectGrantRecord> findActiveReconnectGrant(UUID playerUuid, String playerName, Instant nowUtc) {
+        ReconnectGrantRecord grant = reconnectGrantRecords.get(playerUuid);
+        if (grant == null) {
+            return Optional.empty();
+        }
+
+        if (grant.isExpired(nowUtc)) {
+            reconnectGrantRecords.remove(playerUuid);
+            return Optional.empty();
+        }
+
+        if (playerName == null || grant.playerName() == null) {
+            reconnectGrantRecords.remove(playerUuid);
+            return Optional.empty();
+        }
+
+        if (!grant.playerName().equalsIgnoreCase(playerName)) {
+            return Optional.empty();
+        }
+
+        return Optional.of(grant);
+    }
+
+    public void removeReconnectGrant(UUID playerUuid) {
+        reconnectGrantRecords.remove(playerUuid);
+    }
+
+    public record PendingPlayerRecord(
+            Instant deadlineUtc,
+            boolean legacyAuthEnabled,
+            boolean mustUseLauncher,
+            double anchorX,
+            double anchorY,
+            double anchorZ
+    ) {
+    }
+
+    public record ReconnectGrantRecord(
+            UUID playerUuid,
+            UUID userId,
+            String playerName,
+            AuthSource source,
+            Instant grantedAtUtc,
+            Instant expiresAtUtc
+    ) {
+        
+
+    public boolean isExpired(Instant nowUtc) {
+        return expiresAtUtc == null || !expiresAtUtc.isAfter(nowUtc);
+    }
+}
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\server\AuthSource.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.server;
+
+public enum AuthSource {
+    LAUNCHER_TICKET,
+    LEGACY_LOGIN
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\server\BackendAuthClient.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.server;
+
+import com.google.gson.Gson;
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import ru.voidrp.authbridge.common.dto.ConsumePlayTicketRequest;
+import ru.voidrp.authbridge.common.dto.ConsumePlayTicketResponse;
+import ru.voidrp.authbridge.common.dto.LegacyLoginRequest;
+import ru.voidrp.authbridge.common.dto.LegacyLoginResponse;
+import ru.voidrp.authbridge.common.json.GsonFactory;
+import ru.voidrp.authbridge.common.util.HttpJson;
+import ru.voidrp.authbridge.config.AuthBridgeProperties;
+import ru.voidrp.authbridge.common.dto.PlayerAccessRequest;
+import ru.voidrp.authbridge.common.dto.PlayerAccessResponse;
+
+public final class BackendAuthClient {
+    private final AuthBridgeProperties properties;
+    private final Gson gson;
+    private final HttpClient httpClient;
+
+    public BackendAuthClient(AuthBridgeProperties properties) {
+        this.properties = properties;
+        this.gson = GsonFactory.create();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(properties.requestTimeout())
+                .build();
+    }
+
+    public ConsumePlayTicketResponse consumePlayTicket(ConsumePlayTicketRequest request) {
+        URI uri = properties.backendBaseUrl().resolve(properties.consumeTicketPath());
+        HttpRequest httpRequest = HttpRequest.newBuilder(uri)
+                .header("Content-Type", "application/json")
+                .header("X-Game-Auth-Secret", properties.gameAuthSecret())
+                .timeout(properties.requestTimeout())
+                .POST(HttpJson.body(gson, request))
+                .build();
+
+        try {
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                return gson.fromJson(response.body(), ConsumePlayTicketResponse.class);
+            }
+            return ConsumePlayTicketResponse.failed("http_" + response.statusCode() + ": " + response.body());
+        } catch (IOException ex) {
+            return ConsumePlayTicketResponse.failed("io_error: " + ex.getMessage());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return ConsumePlayTicketResponse.failed("interrupted: " + ex.getMessage());
+        } catch (RuntimeException ex) {
+            return ConsumePlayTicketResponse.failed("client_error: " + ex.getMessage());
+        }
+    }
+
+    public LegacyLoginResponse legacyLogin(LegacyLoginRequest request) {
+        URI uri = properties.backendBaseUrl().resolve(properties.legacyLoginPath());
+        HttpRequest httpRequest = HttpRequest.newBuilder(uri)
+                .header("Content-Type", "application/json")
+                .header("X-Game-Auth-Secret", properties.gameAuthSecret())
+                .timeout(properties.requestTimeout())
+                .POST(HttpJson.body(gson, request))
+                .build();
+
+        try {
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                return gson.fromJson(response.body(), LegacyLoginResponse.class);
+            }
+            return LegacyLoginResponse.failed("http_" + response.statusCode() + ": " + response.body());
+        } catch (IOException ex) {
+            return LegacyLoginResponse.failed("io_error: " + ex.getMessage());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return LegacyLoginResponse.failed("interrupted: " + ex.getMessage());
+        } catch (RuntimeException ex) {
+            return LegacyLoginResponse.failed("client_error: " + ex.getMessage());
+        }
+    }
+
+    public PlayerAccessResponse getPlayerAccess(String playerName) {
+        URI uri = properties.backendBaseUrl().resolve("/api/v1/server/auth/player-access");
+        HttpRequest httpRequest = HttpRequest.newBuilder(uri)
+                .header("Content-Type", "application/json")
+                .header("X-Game-Auth-Secret", properties.gameAuthSecret())
+                .timeout(properties.requestTimeout())
+                .POST(HttpJson.body(gson, new PlayerAccessRequest(playerName)))
+                .build();
+
+        try {
+            HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                return gson.fromJson(response.body(), PlayerAccessResponse.class);
+            }
+            return PlayerAccessResponse.failed("http_" + response.statusCode() + ": " + response.body());
+        } catch (IOException ex) {
+            return PlayerAccessResponse.failed("io_error: " + ex.getMessage());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            return PlayerAccessResponse.failed("interrupted: " + ex.getMessage());
+        } catch (RuntimeException ex) {
+            return PlayerAccessResponse.failed("client_error: " + ex.getMessage());
+        }
+    }
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\server\LegacyAuthService.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.server;
+
+import java.time.Instant;
+import java.util.UUID;
+import ru.voidrp.authbridge.common.dto.LegacyLoginRequest;
+import ru.voidrp.authbridge.common.dto.LegacyLoginResponse;
+
+public final class LegacyAuthService {
+    private final BackendAuthClient backendAuthClient;
+    private final AuthenticationStateStore stateStore;
+
+    public LegacyAuthService(BackendAuthClient backendAuthClient, AuthenticationStateStore stateStore) {
+        this.backendAuthClient = backendAuthClient;
+        this.stateStore = stateStore;
+    }
+
+    public LegacyLoginResponse login(UUID playerUuid, String playerName, String password) {
+        LegacyLoginResponse response = backendAuthClient.legacyLogin(
+                new LegacyLoginRequest(playerName, password)
+        );
+
+        if (response != null && response.accepted() && response.userId() != null) {
+            stateStore.markAuthenticated(new AuthenticatedPlayerRecord(
+                    playerUuid,
+                    response.userId(),
+                    playerName,
+                    Instant.now(),
+                    AuthSource.LEGACY_LOGIN
+            ));
+        }
+
+        return response;
+    }
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\server\PlayTicketConsumeService.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.server;
+
+import java.time.Instant;
+import java.util.UUID;
+import ru.voidrp.authbridge.common.dto.ConsumePlayTicketRequest;
+import ru.voidrp.authbridge.common.dto.ConsumePlayTicketResponse;
+
+public final class PlayTicketConsumeService {
+    private final BackendAuthClient backendAuthClient;
+    private final AuthenticationStateStore stateStore;
+
+    public PlayTicketConsumeService(BackendAuthClient backendAuthClient, AuthenticationStateStore stateStore) {
+        this.backendAuthClient = backendAuthClient;
+        this.stateStore = stateStore;
+    }
+
+    public ConsumePlayTicketResponse authenticate(UUID playerUuid, String playerName, ConsumePlayTicketRequest request) {
+        ConsumePlayTicketResponse response = backendAuthClient.consumePlayTicket(request);
+        if (response != null && response.accepted() && response.userId() != null) {
+            stateStore.markAuthenticated(new AuthenticatedPlayerRecord(
+                    playerUuid,
+                    response.userId(),
+                    playerName,
+                    Instant.now(),
+                    AuthSource.LAUNCHER_TICKET
+            ));
+        }
+        return response;
+    }
+}
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\server\PreAuthRestrictionService.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.server;
+
+import com.mojang.brigadier.ParseResults;
+import java.util.Set;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.CommandEvent;
+import net.neoforged.neoforge.event.ServerChatEvent;
+import net.neoforged.neoforge.event.entity.living.LivingIncomingDamageEvent;
+import net.neoforged.neoforge.event.entity.player.AttackEntityEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.event.entity.player.UseItemOnBlockEvent;
+import net.neoforged.neoforge.event.tick.PlayerTickEvent;
+import ru.voidrp.authbridge.bootstrap.ModBootstrap;
+
+public final class PreAuthRestrictionService {
+
+    private static final Set<String> ALLOWED_COMMANDS = Set.of("login");
+
+    private static final double MAX_ALLOWED_DRIFT_SQR = 0.01D;
+
+    private static final Component CHAT_DENIED = Component.literal(
+            "Чат будет доступен после авторизации."
+    );
+    private static final Component COMMAND_DENIED = Component.literal(
+            "Эта команда будет доступна после авторизации."
+    );
+    private static final Component INTERACTION_DENIED = Component.literal(
+            "Сначала завершите авторизацию."
+    );
+    private static final Component LEGACY_HINT = Component.literal(
+            "Для входа используйте /login <password>"
+    );
+    private static final Component LAUNCHER_HINT = Component.literal(
+            "Ожидаем подтверждение входа через лаунчер VoidRP..."
+    );
+
+    private PreAuthRestrictionService() {
+    }
+
+    @SubscribeEvent
+    public static void onPlayerTick(PlayerTickEvent.Post event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        if (player.level().isClientSide()) {
+            return;
+        }
+
+        var restriction = ModBootstrap.get().stateStore().findRestriction(player.getUUID());
+        if (restriction.isEmpty()) {
+            return;
+        }
+
+        enforceLockedState(player, restriction.get());
+    }
+
+    @SubscribeEvent
+    public static void onServerChat(ServerChatEvent event) {
+        ServerPlayer player = event.getPlayer();
+        if (!isRestricted(player)) {
+            return;
+        }
+
+        event.setCanceled(true);
+        deny(player, CHAT_DENIED);
+    }
+
+    @SubscribeEvent
+    public static void onCommand(CommandEvent event) {
+        ParseResults<CommandSourceStack> parseResults = event.getParseResults();
+
+        if (!(parseResults.getContext().getSource().getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        if (!isRestricted(player)) {
+            return;
+        }
+
+        String rootCommand = extractRootCommand(parseResults.getReader().getString());
+        if (ALLOWED_COMMANDS.contains(rootCommand)) {
+            return;
+        }
+
+        event.setCanceled(true);
+        deny(player, COMMAND_DENIED);
+    }
+
+    @SubscribeEvent
+    public static void onLeftClickBlock(PlayerInteractEvent.LeftClickBlock event) {
+        ServerPlayer player = asRestrictedServerPlayer(event.getEntity());
+        if (player == null) {
+            return;
+        }
+
+        event.setCanceled(true);
+        deny(player, INTERACTION_DENIED);
+    }
+
+    @SubscribeEvent
+    public static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        ServerPlayer player = asRestrictedServerPlayer(event.getEntity());
+        if (player == null) {
+            return;
+        }
+
+        event.setCanceled(true);
+        deny(player, INTERACTION_DENIED);
+    }
+
+    @SubscribeEvent
+    public static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
+        ServerPlayer player = asRestrictedServerPlayer(event.getEntity());
+        if (player == null) {
+            return;
+        }
+
+        event.setCanceled(true);
+        deny(player, INTERACTION_DENIED);
+    }
+
+    @SubscribeEvent
+    public static void onEntityInteract(PlayerInteractEvent.EntityInteract event) {
+        ServerPlayer player = asRestrictedServerPlayer(event.getEntity());
+        if (player == null) {
+            return;
+        }
+
+        event.setCanceled(true);
+        deny(player, INTERACTION_DENIED);
+    }
+
+    @SubscribeEvent
+    public static void onEntityInteractSpecific(PlayerInteractEvent.EntityInteractSpecific event) {
+        ServerPlayer player = asRestrictedServerPlayer(event.getEntity());
+        if (player == null) {
+            return;
+        }
+
+        event.setCanceled(true);
+        deny(player, INTERACTION_DENIED);
+    }
+
+    @SubscribeEvent
+    public static void onUseItemOnBlock(UseItemOnBlockEvent event) {
+        if (!(event.getUseOnContext().getPlayer() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        if (player.level().isClientSide()) {
+            return;
+        }
+
+        if (!isRestricted(player)) {
+            return;
+        }
+
+        event.setCanceled(true);
+        deny(player, INTERACTION_DENIED);
+    }
+
+    @SubscribeEvent
+    public static void onAttackEntity(AttackEntityEvent event) {
+        ServerPlayer player = asRestrictedServerPlayer(event.getEntity());
+        if (player == null) {
+            return;
+        }
+
+        event.setCanceled(true);
+        deny(player, INTERACTION_DENIED);
+    }
+
+    @SubscribeEvent
+    public static void onIncomingDamage(LivingIncomingDamageEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        if (player.level().isClientSide()) {
+            return;
+        }
+
+        if (!isRestricted(player)) {
+            return;
+        }
+
+        event.setCanceled(true);
+        player.fallDistance = 0.0F;
+    }
+
+    @SubscribeEvent
+    public static void onBreakSpeed(PlayerEvent.BreakSpeed event) {
+        ServerPlayer player = asRestrictedServerPlayer(event.getEntity());
+        if (player == null) {
+            return;
+        }
+
+        event.setCanceled(true);
+        event.setNewSpeed(0.0F);
+        deny(player, INTERACTION_DENIED);
+    }
+
+    @SubscribeEvent
+    public static void onHarvestCheck(PlayerEvent.HarvestCheck event) {
+        ServerPlayer player = asRestrictedServerPlayer(event.getEntity());
+        if (player == null) {
+            return;
+        }
+
+        event.setCanHarvest(false);
+    }
+
+    private static void enforceLockedState(
+            ServerPlayer player,
+            AuthenticationStateStore.PendingPlayerRecord restriction
+    ) {
+        player.stopUsingItem();
+        player.setSprinting(false);
+        player.setDeltaMovement(Vec3.ZERO);
+        player.fallDistance = 0.0F;
+
+        if (player.containerMenu != player.inventoryMenu) {
+            player.closeContainer();
+        }
+
+        double dx = player.getX() - restriction.anchorX();
+        double dy = player.getY() - restriction.anchorY();
+        double dz = player.getZ() - restriction.anchorZ();
+
+        if ((dx * dx) + (dy * dy) + (dz * dz) > MAX_ALLOWED_DRIFT_SQR) {
+            player.teleportTo(
+                    restriction.anchorX(),
+                    restriction.anchorY(),
+                    restriction.anchorZ()
+            );
+        }
+
+        if (player.tickCount % 40 == 0) {
+            if (ModBootstrap.get().stateStore().isLegacyPending(player.getUUID())) {
+                player.displayClientMessage(LEGACY_HINT, true);
+            } else {
+                player.displayClientMessage(LAUNCHER_HINT, true);
+            }
+        }
+    }
+
+    private static boolean isRestricted(ServerPlayer player) {
+        return ModBootstrap.get().stateStore().isRestricted(player.getUUID());
+    }
+
+    private static ServerPlayer asRestrictedServerPlayer(Player player) {
+        if (!(player instanceof ServerPlayer serverPlayer)) {
+            return null;
+        }
+
+        if (serverPlayer.level().isClientSide()) {
+            return null;
+        }
+
+        return isRestricted(serverPlayer) ? serverPlayer : null;
+    }
+
+    private static void deny(ServerPlayer player, Component message) {
+        if (player.tickCount % 10 == 0) {
+            player.sendSystemMessage(message);
+        }
+    }
+
+    private static String extractRootCommand(String rawCommand) {
+        if (rawCommand == null) {
+            return "";
+        }
+
+        String normalized = rawCommand.trim();
+        if (normalized.startsWith("/")) {
+            normalized = normalized.substring(1);
+        }
+
+        int spaceIndex = normalized.indexOf(' ');
+        if (spaceIndex >= 0) {
+            normalized = normalized.substring(0, spaceIndex);
+        }
+
+        return normalized.trim().toLowerCase();
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\server\ServerAuthHooks.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.server;
+
+import java.time.Instant;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import ru.voidrp.authbridge.VoidRpAuthBridge;
+import ru.voidrp.authbridge.bootstrap.ModBootstrap;
+
+public final class ServerAuthHooks {
+
+    private static final long RECONNECT_GRANT_SECONDS = 7200L;
+
+    private ServerAuthHooks() {
+    }
+
+    @SubscribeEvent
+    public static void onPlayerLoggedOut(PlayerEvent.PlayerLoggedOutEvent event) {
+        var stateStore = ModBootstrap.get().stateStore();
+        var player = event.getEntity();
+        var playerUuid = player.getUUID();
+
+        var authenticated = stateStore.find(playerUuid);
+        if (authenticated.isPresent()) {
+            var record = authenticated.get();
+
+            if (record.source() == AuthSource.LAUNCHER_TICKET) {
+                Instant expiresAtUtc = Instant.now().plusSeconds(RECONNECT_GRANT_SECONDS);
+                stateStore.rememberReconnectGrant(record, expiresAtUtc);
+
+                VoidRpAuthBridge.LOGGER.info(
+                        "Saved reconnect grant for player={} uuid={} until={}",
+                        record.playerName(),
+                        record.playerUuid(),
+                        expiresAtUtc
+                );
+            } else {
+                stateStore.removeReconnectGrant(playerUuid);
+            }
+        }
+
+        ModBootstrap.get().authRestrictionBridge().onPlayerSessionEnded(playerUuid);
+        stateStore.clear(playerUuid);
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\server\ServerJoinGateHooks.java
+------------------------------------------------------------
+package ru.voidrp.authbridge.server;
+
+import java.time.Instant;
+import java.util.UUID;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import ru.voidrp.authbridge.VoidRpAuthBridge;
+import ru.voidrp.authbridge.bootstrap.ModBootstrap;
+import ru.voidrp.authbridge.common.dto.PlayerAccessResponse;
+
+public final class ServerJoinGateHooks {
+
+    private static final long AUTH_GRACE_SECONDS = 180L;
+
+    private static final Component WAITING_FOR_LAUNCHER = Component.literal(
+            "Ожидаем подтверждение входа через лаунчер VoidRP..."
+    );
+    private static final Component WAITING_FOR_TICKET_OR_LOGIN = Component.literal(
+            "Проверяем вход. Если подтверждение из лаунчера не придёт, используй /login <password>."
+    );
+    private static final Component LEGACY_LOGIN_REQUIRED = Component.literal(
+            "Для входа используйте /login <password>"
+    );
+    private static final Component LAUNCHER_ONLY_KICK = Component.literal(
+            "Авторизация доступна только через лаунчер VoidRP."
+    );
+    private static final Component ACCOUNT_DENIED_KICK = Component.literal(
+            "Вход в игру сейчас недоступен для этого аккаунта."
+    );
+    private static final Component ACCOUNT_NOT_FOUND_KICK = Component.literal(
+            "Игровой аккаунт не найден. Зарегистрируй аккаунт VoidRP и укажи правильный ник Minecraft."
+    );
+    private static final Component AUTH_SERVICE_UNAVAILABLE_KICK = Component.literal(
+            "Сервис авторизации временно недоступен. Попробуйте зайти позже."
+    );
+    private static final Component RECONNECT_ACCEPTED = Component.literal(
+            "Повторный вход подтверждён. Можно продолжать игру."
+    );
+
+    private ServerJoinGateHooks() {
+    }
+
+    @SubscribeEvent
+    public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+
+        UUID playerUuid = player.getUUID();
+        String playerName = player.getGameProfile().getName();
+        var stateStore = ModBootstrap.get().stateStore();
+
+        var reconnectGrant = stateStore.findActiveReconnectGrant(
+                playerUuid,
+                playerName,
+                Instant.now()
+        );
+
+        if (reconnectGrant.isPresent()) {
+            var grant = reconnectGrant.get();
+
+            stateStore.markAuthenticated(new AuthenticatedPlayerRecord(
+                    playerUuid,
+                    grant.userId(),
+                    playerName,
+                    Instant.now(),
+                    grant.source()
+            ));
+
+            player.sendSystemMessage(RECONNECT_ACCEPTED);
+
+            VoidRpAuthBridge.LOGGER.info(
+                    "Player restored from reconnect grant: player={} uuid={} expiresAtUtc={}",
+                    playerName,
+                    playerUuid,
+                    grant.expiresAtUtc()
+            );
+            return;
+        }
+
+        PlayerAccessResponse access = ModBootstrap.get().backendAuthClient().getPlayerAccess(playerName);
+
+        if (isBackendLookupFailure(access)) {
+            VoidRpAuthBridge.LOGGER.warn(
+                    "Kicking player because auth backend lookup failed: player={} uuid={} error={}",
+                    playerName,
+                    playerUuid,
+                    access.error()
+            );
+            disconnectAndClear(player, AUTH_SERVICE_UNAVAILABLE_KICK);
+            return;
+        }
+
+        if (!access.playerExists()) {
+            VoidRpAuthBridge.LOGGER.warn(
+                    "Kicking player because player account was not found: player={} uuid={} backendError={}",
+                    playerName,
+                    playerUuid,
+                    access.error()
+            );
+            disconnectAndClear(player, ACCOUNT_NOT_FOUND_KICK);
+            return;
+        }
+
+        if (!access.userActive()) {
+            VoidRpAuthBridge.LOGGER.warn(
+                    "Kicking player because account is disabled: player={} uuid={} backendError={}",
+                    playerName,
+                    playerUuid,
+                    access.error()
+            );
+            disconnectAndClear(player, ACCOUNT_DENIED_KICK);
+            return;
+        }
+
+        Instant deadline = Instant.now().plusSeconds(AUTH_GRACE_SECONDS);
+
+        stateStore.markPending(
+                playerUuid,
+                new AuthenticationStateStore.PendingPlayerRecord(
+                        deadline,
+                        access.legacyAuthEnabled(),
+                        access.mustUseLauncher(),
+                        player.getX(),
+                        player.getY(),
+                        player.getZ()
+                )
+        );
+
+        VoidRpAuthBridge.LOGGER.info(
+                "Player entered auth gate: player={} uuid={} playerExists={} userActive={} legacyEnabled={} mustUseLauncher={} deadlineUtc={} backendError={}",
+                playerName,
+                playerUuid,
+                access.playerExists(),
+                access.userActive(),
+                access.legacyAuthEnabled(),
+                access.mustUseLauncher(),
+                deadline,
+                access.error()
+        );
+
+        if (access.legacyAuthEnabled()) {
+            player.sendSystemMessage(WAITING_FOR_TICKET_OR_LOGIN);
+        } else {
+            player.sendSystemMessage(WAITING_FOR_LAUNCHER);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onServerTick(ServerTickEvent.Post event) {
+        var stateStore = ModBootstrap.get().stateStore();
+        var pending = stateStore.snapshotPending();
+
+        for (var entry : pending.entrySet()) {
+            UUID playerUuid = entry.getKey();
+            AuthenticationStateStore.PendingPlayerRecord record = entry.getValue();
+
+            if (Instant.now().isBefore(record.deadlineUtc())) {
+                continue;
+            }
+
+            if (stateStore.isAuthenticated(playerUuid)) {
+                continue;
+            }
+
+            ServerPlayer player = event.getServer().getPlayerList().getPlayer(playerUuid);
+            if (player == null) {
+                stateStore.clear(playerUuid);
+                continue;
+            }
+
+            if (record.legacyAuthEnabled()) {
+                stateStore.markLegacyPending(playerUuid);
+                player.sendSystemMessage(LEGACY_LOGIN_REQUIRED);
+
+                VoidRpAuthBridge.LOGGER.info(
+                        "Player moved to legacy pending: player={} uuid={}",
+                        player.getGameProfile().getName(),
+                        playerUuid
+                );
+                continue;
+            }
+
+            if (record.mustUseLauncher()) {
+                VoidRpAuthBridge.LOGGER.warn(
+                        "Kicking player because launcher auth did not arrive before deadline: player={} uuid={}",
+                        player.getGameProfile().getName(),
+                        playerUuid
+                );
+                player.connection.disconnect(LAUNCHER_ONLY_KICK);
+            } else {
+                VoidRpAuthBridge.LOGGER.warn(
+                        "Kicking player because account access is denied after auth gate timeout: player={} uuid={}",
+                        player.getGameProfile().getName(),
+                        playerUuid
+                );
+                player.connection.disconnect(ACCOUNT_DENIED_KICK);
+            }
+
+            stateStore.clear(playerUuid);
+        }
+    }
+
+    private static boolean isBackendLookupFailure(PlayerAccessResponse access) {
+        if (access == null) {
+            return true;
+        }
+
+        String error = access.error();
+        if (error == null || error.isBlank()) {
+            return false;
+        }
+
+        return error.startsWith("io_error:")
+                || error.startsWith("interrupted:")
+                || error.startsWith("client_error:")
+                || error.startsWith("http_");
+    }
+
+    private static void disconnectAndClear(ServerPlayer player, Component reason) {
+        ModBootstrap.get().stateStore().clear(player.getUUID());
+        player.connection.disconnect(reason);
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\java\ru\voidrp\authbridge\VoidRpAuthBridge.java
+------------------------------------------------------------
+package ru.voidrp.authbridge;
+
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.common.Mod;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import ru.voidrp.authbridge.bootstrap.ModBootstrap;
+
+@Mod(VoidRpAuthBridge.MODID)
+public final class VoidRpAuthBridge {
+    public static final String MODID = "voidrp_auth_bridge";
+    public static final Logger LOGGER = LoggerFactory.getLogger(VoidRpAuthBridge.class);
+
+    private final ModBootstrap bootstrap;
+
+    public VoidRpAuthBridge(IEventBus modBus) {
+        this.bootstrap = ModBootstrap.createDefault();
+        this.bootstrap.initialize(modBus);
+        LOGGER.info("{} skeleton loaded", MODID);
+    }
+
+    public ModBootstrap bootstrap() {
+        return bootstrap;
+    }
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\resources\assets\voidrp_auth_bridge\lang\en_us.json
+------------------------------------------------------------
+{
+  "modmenu.nameTranslation.voidrp_auth_bridge": "VoidRP Auth Bridge",
+  "voidrp_auth_bridge.status.ready": "VoidRP Auth Bridge initialized",
+  "voidrp_auth_bridge.status.pending": "Authentication pending",
+  "voidrp_auth_bridge.status.authorized": "Launcher authentication complete",
+  "voidrp_auth_bridge.status.denied": "Authentication denied"
+}
+
+
+
+------------------------------------------------------------
+Файл: E:\voidrp-auth-bridge\src\main\resources\assets\voidrp_auth_bridge\lang\ru_ru.json
+------------------------------------------------------------
+{
+  "modmenu.nameTranslation.voidrp_auth_bridge": "VoidRP Auth Bridge",
+  "voidrp_auth_bridge.status.ready": "VoidRP Auth Bridge инициализирован",
+  "voidrp_auth_bridge.status.pending": "Ожидание авторизации",
+  "voidrp_auth_bridge.status.authorized": "Авторизация через лаунчер завершена",
+  "voidrp_auth_bridge.status.denied": "Авторизация отклонена"
+}
+
+
