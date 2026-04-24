@@ -8,6 +8,9 @@ import ru.voidrp.authbridge.client.ClientTicketDispatcher;
 import ru.voidrp.authbridge.config.AuthBridgeProperties;
 import ru.voidrp.authbridge.integration.AuthIntegrationRegistry;
 import ru.voidrp.authbridge.integration.AuthRestrictionBridge;
+import java.util.List;
+import ru.voidrp.authbridge.integration.AuthGameplayStateBridge;
+import ru.voidrp.authbridge.integration.CompositeAuthRestrictionBridge;
 import ru.voidrp.authbridge.integration.EventDispatchingAuthRestrictionBridge;
 import ru.voidrp.authbridge.network.AuthPayloadRegistrar;
 import ru.voidrp.authbridge.server.AuthCommandBridge;
@@ -58,7 +61,10 @@ public final class ModBootstrap {
         BackendAuthClient backendAuthClient = new BackendAuthClient(properties);
         AuthIntegrationRegistry authIntegrationRegistry = new AuthIntegrationRegistry();
         AuthRestrictionBridge authRestrictionBridge
-                = new EventDispatchingAuthRestrictionBridge(authIntegrationRegistry);
+                = new CompositeAuthRestrictionBridge(List.of(
+                        new EventDispatchingAuthRestrictionBridge(authIntegrationRegistry),
+                        new AuthGameplayStateBridge()
+                ));
 
         INSTANCE = new ModBootstrap(
                 properties,
