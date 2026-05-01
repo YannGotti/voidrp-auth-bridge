@@ -25,7 +25,8 @@ public final class LegacyAuthService {
                     response.userId(),
                     playerName,
                     Instant.now(),
-                    AuthSource.LEGACY_LOGIN
+                    AuthSource.LEGACY_LOGIN,
+                    true
             ));
         }
 

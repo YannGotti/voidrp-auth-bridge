@@ -7,13 +7,15 @@ import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforge.network.PacketDistributor;
 import ru.voidrp.authbridge.VoidRpAuthBridge;
 import ru.voidrp.authbridge.bootstrap.ModBootstrap;
 import ru.voidrp.authbridge.common.dto.PlayerAccessResponse;
+import ru.voidrp.authbridge.network.AuthStatusPayload;
 
 public final class ServerJoinGateHooks {
 
-    private static final long AUTH_GRACE_SECONDS = 180L;
+    private static final long AUTH_GRACE_SECONDS = 20L;
 
     private static final Component WAITING_FOR_LAUNCHER = Component.literal(
             "Ожидаем подтверждение входа через лаунчер VoidRP..."
@@ -67,7 +69,8 @@ public final class ServerJoinGateHooks {
                     grant.userId(),
                     playerName,
                     Instant.now(),
-                    grant.source()
+                    grant.source(),
+                    grant.legacyAuthEnabled()
             ));
 
             player.sendSystemMessage(RECONNECT_ACCEPTED);
@@ -144,14 +147,21 @@ public final class ServerJoinGateHooks {
 
         if (access.legacyAuthEnabled()) {
             player.sendSystemMessage(WAITING_FOR_TICKET_OR_LOGIN);
+            PacketDistributor.sendToPlayer(player, AuthStatusPayload.pending(
+                    "Ожидаем тикет лаунчера или /login"
+            ));
         } else {
             player.sendSystemMessage(WAITING_FOR_LAUNCHER);
+            PacketDistributor.sendToPlayer(player, AuthStatusPayload.pending(
+                    "Ожидаем тикет лаунчера VoidRP"
+            ));
         }
     }
 
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         var stateStore = ModBootstrap.get().stateStore();
+        stateStore.evictExpiredReconnectGrants(Instant.now());
         var pending = stateStore.snapshotPending();
 
         for (var entry : pending.entrySet()) {

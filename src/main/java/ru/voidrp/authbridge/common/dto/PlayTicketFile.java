@@ -14,7 +14,10 @@ public record PlayTicketFile(
         Instant expiresAtUtc,
 
         @SerializedName("source")
-        String source
+        String source,
+
+        @SerializedName("launcherProof")
+        String launcherProof
 ) {
     public boolean isExpired(Instant now) {
         return expiresAtUtc == null || !expiresAtUtc.isAfter(now);

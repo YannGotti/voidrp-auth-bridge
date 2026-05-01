@@ -78,7 +78,8 @@ public final class ClientAuthHooks {
 
         PacketDistributor.sendToServer(new ConsumePlayTicketPayload(
                 value.ticket(),
-                value.playerName()
+                value.playerName(),
+                value.launcherProof() != null ? value.launcherProof() : ""
         ));
 
         sentThisSession = true;

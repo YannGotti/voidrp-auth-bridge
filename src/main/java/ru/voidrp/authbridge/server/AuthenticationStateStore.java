@@ -83,6 +83,7 @@ public final class AuthenticationStateStore {
                         record.userId(),
                         record.playerName(),
                         record.source(),
+                        record.legacyAuthEnabled(),
                         record.authenticatedAt(),
                         expiresAtUtc
                 )
@@ -116,6 +117,10 @@ public final class AuthenticationStateStore {
         reconnectGrantRecords.remove(playerUuid);
     }
 
+    public void evictExpiredReconnectGrants(Instant nowUtc) {
+        reconnectGrantRecords.entrySet().removeIf(e -> e.getValue().isExpired(nowUtc));
+    }
+
     public record PendingPlayerRecord(
             Instant deadlineUtc,
             boolean legacyAuthEnabled,
@@ -131,6 +136,7 @@ public final class AuthenticationStateStore {
             UUID userId,
             String playerName,
             AuthSource source,
+            boolean legacyAuthEnabled,
             Instant grantedAtUtc,
             Instant expiresAtUtc
     ) {

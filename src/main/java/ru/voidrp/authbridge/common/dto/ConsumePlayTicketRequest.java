@@ -7,6 +7,9 @@ public record ConsumePlayTicketRequest(
         String ticket,
 
         @SerializedName("player_name")
-        String playerName
+        String playerName,
+
+        @SerializedName("launcher_proof")
+        String launcherProof
 ) {
 }

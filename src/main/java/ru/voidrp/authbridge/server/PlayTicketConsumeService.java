@@ -22,7 +22,8 @@ public final class PlayTicketConsumeService {
                     response.userId(),
                     playerName,
                     Instant.now(),
-                    AuthSource.LAUNCHER_TICKET
+                    AuthSource.LAUNCHER_TICKET,
+                    response.legacyAuthEnabled()
             ));
         }
         return response;

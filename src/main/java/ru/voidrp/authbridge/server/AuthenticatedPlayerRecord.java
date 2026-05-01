@@ -8,6 +8,7 @@ public record AuthenticatedPlayerRecord(
         UUID userId,
         String playerName,
         Instant authenticatedAt,
-        AuthSource source
+        AuthSource source,
+        boolean legacyAuthEnabled
 ) {
 }

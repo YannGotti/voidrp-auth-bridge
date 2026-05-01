@@ -9,7 +9,8 @@ import ru.voidrp.authbridge.VoidRpAuthBridge;
 
 public record ConsumePlayTicketPayload(
         String ticket,
-        String playerName
+        String playerName,
+        String launcherProof
 ) implements CustomPacketPayload {
 
     public static final Type<ConsumePlayTicketPayload> TYPE =
@@ -21,6 +22,8 @@ public record ConsumePlayTicketPayload(
                     ConsumePlayTicketPayload::ticket,
                     ByteBufCodecs.STRING_UTF8,
                     ConsumePlayTicketPayload::playerName,
+                    ByteBufCodecs.STRING_UTF8,
+                    ConsumePlayTicketPayload::launcherProof,
                     ConsumePlayTicketPayload::new
             );
 

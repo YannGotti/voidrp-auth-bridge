@@ -42,7 +42,8 @@ public final class ClientTicketDispatcher {
         return loadValidTicket(currentPlayerName)
                 .map(ticket -> new ConsumePlayTicketRequest(
                         ticket.ticket(),
-                        currentPlayerName
+                        currentPlayerName,
+                        ticket.launcherProof() != null ? ticket.launcherProof() : ""
                 ));
     }
 }
