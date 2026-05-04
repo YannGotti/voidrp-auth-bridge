@@ -24,24 +24,29 @@ public final class ServerAuthHooks {
         if (authenticated.isPresent()) {
             var record = authenticated.get();
 
-            // Only give a reconnect grant to legacy-auth accounts (mustUseLauncher=false).
-            // Launcher-only accounts must always start a fresh session via the VoidRP launcher.
-            if (record.source() == AuthSource.LAUNCHER_TICKET && record.legacyAuthEnabled()) {
+            // Give a reconnect grant to all players who authenticated via a real launcher ticket
+            // or via legacy login. A session that was itself restored from a reconnect grant does
+            // NOT produce a new grant — this prevents indefinite chaining for launcher-only accounts.
+            boolean isChainableSource = record.source() == AuthSource.LAUNCHER_TICKET
+                    || record.source() == AuthSource.LEGACY_LOGIN;
+            if (isChainableSource) {
                 Instant expiresAtUtc = Instant.now().plusSeconds(RECONNECT_GRANT_SECONDS);
                 stateStore.rememberReconnectGrant(record, expiresAtUtc);
 
                 VoidRpAuthBridge.LOGGER.info(
-                        "Saved reconnect grant for player={} uuid={} until={}",
+                        "Saved reconnect grant for player={} uuid={} source={} until={}",
                         record.playerName(),
                         record.playerUuid(),
+                        record.source(),
                         expiresAtUtc
                 );
             } else {
                 stateStore.removeReconnectGrant(playerUuid);
                 VoidRpAuthBridge.LOGGER.info(
-                        "No reconnect grant saved for player={} uuid={} (mustUseLauncher=true or legacy login)",
+                        "No reconnect grant saved for player={} uuid={} source={} (reconnect chain not allowed)",
                         record.playerName(),
-                        record.playerUuid()
+                        record.playerUuid(),
+                        record.source()
                 );
             }
         }

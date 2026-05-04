@@ -15,7 +15,7 @@ import ru.voidrp.authbridge.network.AuthStatusPayload;
 
 public final class ServerJoinGateHooks {
 
-    private static final long AUTH_GRACE_SECONDS = 20L;
+    private static final long AUTH_GRACE_SECONDS = 60L;
 
     private static final Component WAITING_FOR_LAUNCHER = Component.literal(
             "Ожидаем подтверждение входа через лаунчер VoidRP..."
@@ -69,7 +69,7 @@ public final class ServerJoinGateHooks {
                     grant.userId(),
                     playerName,
                     Instant.now(),
-                    grant.source(),
+                    AuthSource.RECONNECT_GRANT,
                     grant.legacyAuthEnabled()
             ));
 
